@@ -42,6 +42,7 @@ import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection;
 import com.android.systemui.tv.res.R;
+import com.android.systemui.volume.panel.domain.interactor.VolumePanelGlobalStateInteractor;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -70,6 +71,7 @@ public class TvMediaOutputController extends MediaOutputController {
             PowerExemptionManager powerExemptionManager,
             KeyguardManager keyGuardManager,
             FeatureFlags featureFlags,
+            VolumePanelGlobalStateInteractor volumePanelGlobalStateInteractor,
             UserTracker userTracker) {
         super(
                 context,
@@ -86,6 +88,7 @@ public class TvMediaOutputController extends MediaOutputController {
                 powerExemptionManager,
                 keyGuardManager,
                 featureFlags,
+                volumePanelGlobalStateInteractor,
                 userTracker);
         mContext = context;
         mAudioManager = audioManager;
@@ -148,7 +151,7 @@ public class TvMediaOutputController extends MediaOutputController {
                 addOtherDevicesDivider(finalMediaItems);
                 disconnectedDevicesAdded = true;
             }
-            finalMediaItems.add(new MediaItem(device));
+            finalMediaItems.add(MediaItem.createDeviceMediaItem(device));
         }
         addConnectAnotherDeviceItem(finalMediaItems);
         return finalMediaItems;
@@ -204,26 +207,30 @@ public class TvMediaOutputController extends MediaOutputController {
 
         // Add new connected devices at the end, add new disconnected devices at the start
         if (isConnected) {
-            targetMediaItems.addAll(matchingMediaDevices.stream().map(MediaItem::new).toList());
-            targetMediaItems.addAll(newMediaDevices.stream().map(MediaItem::new).toList());
+            targetMediaItems.addAll(
+                    matchingMediaDevices.stream().map(MediaItem::createDeviceMediaItem).toList());
+            targetMediaItems.addAll(
+                    newMediaDevices.stream().map(MediaItem::createDeviceMediaItem).toList());
         } else {
             if (!matchingMediaDevices.isEmpty() || !newMediaDevices.isEmpty()) {
                 addOtherDevicesDivider(targetMediaItems);
             }
-            targetMediaItems.addAll(newMediaDevices.stream().map(MediaItem::new).toList());
-            targetMediaItems.addAll(matchingMediaDevices.stream().map(MediaItem::new).toList());
+            targetMediaItems.addAll(
+                    newMediaDevices.stream().map(MediaItem::createDeviceMediaItem).toList());
+            targetMediaItems.addAll(
+                    matchingMediaDevices.stream().map(MediaItem::createDeviceMediaItem).toList());
         }
     }
 
     private void addOtherDevicesDivider(List<MediaItem> mediaItems) {
-        mediaItems.add(new MediaItem(mContext.getString(
-                R.string.media_output_dialog_other_devices),
-                MediaItem.MediaItemType.TYPE_GROUP_DIVIDER));
+        mediaItems.add(
+                MediaItem.createGroupDividerMediaItem(
+                        mContext.getString(R.string.media_output_dialog_other_devices)));
     }
 
     private void addConnectAnotherDeviceItem(List<MediaItem> mediaItems) {
-        mediaItems.add(new MediaItem(null, MediaItem.MediaItemType.TYPE_GROUP_DIVIDER));
-        mediaItems.add(new MediaItem());
+        mediaItems.add(MediaItem.createGroupDividerMediaItem(/* title */ null));
+        mediaItems.add(MediaItem.createPairNewDeviceMediaItem());
     }
 
     @Override
