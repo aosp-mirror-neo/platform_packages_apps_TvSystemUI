@@ -36,7 +36,7 @@ import com.android.internal.widget.RecyclerView;
 import com.android.settingslib.media.LocalMediaManager;
 import com.android.settingslib.media.MediaDevice;
 import com.android.systemui.media.dialog.MediaItem;
-import com.android.systemui.media.dialog.MediaOutputController;
+import com.android.systemui.media.dialog.MediaSwitchingController;
 import com.android.systemui.tv.res.R;
 
 import java.util.List;
@@ -51,7 +51,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
     private static final boolean DEBUG = false;
 
     private final TvMediaOutputController mMediaOutputController;
-    private final MediaOutputController.Callback mCallback;
+    private final MediaSwitchingController.Callback mCallback;
     private final Context mContext;
     protected List<MediaItem> mMediaItemList = new CopyOnWriteArrayList<>();
 
@@ -59,8 +59,10 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
     private final int mUnfocusedRadioTint;
     private final int mCheckedRadioTint;
 
-    TvMediaOutputAdapter(Context context, TvMediaOutputController mediaOutputController,
-            MediaOutputController.Callback callback) {
+    TvMediaOutputAdapter(
+            Context context,
+            TvMediaOutputController mediaOutputController,
+            MediaSwitchingController.Callback callback) {
         mContext = context;
         mMediaOutputController = mediaOutputController;
         mCallback = callback;
@@ -176,7 +178,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
                     == LocalMediaManager.MediaDeviceState.STATE_CONNECTING_FAILED) {
                 icon =
                         mContext.getDrawable(
-                                com.android.systemui.R.drawable.media_output_status_failed);
+                                com.android.systemui.res.R.drawable.media_output_status_failed);
             } else {
                 icon = mediaDevice.getIconWithoutBackground();
             }
@@ -215,7 +217,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
             if (mediaDevice.getState()
                     == LocalMediaManager.MediaDeviceState.STATE_CONNECTING_FAILED) {
                 summary = mContext.getString(
-                        com.android.systemui.R.string.media_output_dialog_connect_failed);
+                        com.android.systemui.res.R.string.media_output_dialog_connect_failed);
             } else {
                 summary = mediaDevice.getSummaryForTv(itemView.hasFocus()
                         ? R.color.media_dialog_low_battery_focused
@@ -253,7 +255,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
 
         void onBindNewDevice() {
-            mIcon.setImageResource(com.android.systemui.R.drawable.ic_add);
+            mIcon.setImageResource(com.android.systemui.res.R.drawable.ic_add);
             mTitle.setText(R.string.media_output_dialog_pairing_new);
             mSubtitle.setVisibility(View.GONE);
             mRadioButton.setVisibility(View.GONE);
