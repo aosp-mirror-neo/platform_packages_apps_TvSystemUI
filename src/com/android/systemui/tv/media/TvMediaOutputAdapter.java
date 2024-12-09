@@ -33,8 +33,6 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.accessibility.AccessibilityManager;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.TextView;
@@ -69,8 +67,6 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
     private final Context mContext;
     protected List<MediaItem> mMediaItemList = new CopyOnWriteArrayList<>();
 
-    private final AccessibilityManager mA11yManager;
-
     private final int mFocusedRadioTint;
     private final int mUnfocusedRadioTint;
     private final int mCheckedRadioTint;
@@ -85,8 +81,6 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
         mContext = context;
         mMediaOutputController = mediaOutputController;
         mCallback = callback;
-
-        mA11yManager = context.getSystemService(AccessibilityManager.class);
 
         Resources res = mContext.getResources();
         mFocusedRadioTint = res.getColor(R.color.media_dialog_radio_button_focused);
@@ -225,8 +219,6 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
         final TextView mTitle;
         final TextView mSubtitle;
         final RadioButton mRadioButton;
-        final ImageButton mA11ySettingsButton;
-        final OutputDeviceControlWidget mWidget;
         MediaDevice mMediaDevice;
 
         DeviceViewHolder(View itemView) {
@@ -235,9 +227,44 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
             mTitle = itemView.requireViewById(R.id.media_dialog_item_title);
             mSubtitle = itemView.requireViewById(R.id.media_dialog_item_subtitle);
             mRadioButton = itemView.requireViewById(R.id.media_dialog_radio_button);
+            itemView.setOnKeyListener(
+                    (v, keyCode, event) -> {
+                        if (event.getAction() != KeyEvent.ACTION_UP) {
+                            return false;
+                        }
+                        int dpadArrow = mIsRtl ?
+                                KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT;
+                        if (mMediaDevice != null
+                                && (keyCode == dpadArrow
+                                || (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                                && event.isLongPress()))) {
 
-            mWidget = itemView.requireViewById(R.id.media_dialog_device_widget);
-            mA11ySettingsButton = itemView.requireViewById(R.id.media_dialog_item_a11y_settings);
+                            String baseUri = getBaseUriForDevice(mContext, mMediaDevice);
+                            if (baseUri == null || baseUri.isEmpty()) {
+                                return false;
+                            }
+                            Uri uri = Uri.parse(baseUri);
+                            if (mMediaDevice.getDeviceType()
+                                    == MediaDeviceType.TYPE_BLUETOOTH_DEVICE) {
+                                uri =
+                                        Uri.withAppendedPath(
+                                                uri,
+                                                ((BluetoothMediaDevice) mMediaDevice)
+                                                        .getCachedDevice()
+                                                        .getAddress());
+                            }
+
+                            mSavedDeviceId = mMediaDevice.getId();
+                            mCallback.openDeviceSettings(
+                                    uri.toString(),
+                                    mTitle.getText(),
+                                    getSummary(mMediaDevice, /* focused= */ false),
+                                    mMediaDevice.getId());
+
+                            return true;
+                        }
+                        return false;
+                    });
         }
 
         void onBind(MediaDevice mediaDevice, int position) {
@@ -269,81 +296,27 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
             mRadioButton.setChecked(isCurrentlyConnected(mediaDevice));
             setRadioButtonColor();
 
-            mWidget.setOnFocusChangeListener((view, focused) -> {
+            itemView.setOnFocusChangeListener((view, focused) -> {
                 setSummary(mediaDevice);
                 setRadioButtonColor();
                 mTitle.setSelected(focused);
                 mSubtitle.setSelected(focused);
             });
 
-            mWidget.setOnClickListener(v -> transferOutput(mediaDevice));
+            itemView.setOnClickListener(v -> transferOutput(mediaDevice));
 
+            OutputDeviceControlWidget widget = (OutputDeviceControlWidget) itemView;
             String baseUri = getBaseUriForDevice(mContext, mMediaDevice);
-            boolean hasSettings = baseUri != null && !baseUri.isEmpty();
-
-            if (hasSettings) {
-                if (mA11yManager.isEnabled()) {
-                    mA11ySettingsButton.setVisibility(View.VISIBLE);
-                    mA11ySettingsButton.setContentDescription(
-                            mContext.getString(R.string.audio_device_settings_content_description,
-                            mediaDevice.getName()));
-                    mA11ySettingsButton.setOnClickListener((view) -> {
-                        openDeviceSettings(baseUri);
-                    });
-                } else {
-                    ControlWidget.TooltipConfig toolTipConfig = new ControlWidget.TooltipConfig();
-                    toolTipConfig.setShouldShowTooltip(true);
-                    toolTipConfig.setTooltipText(mTooltipText);
-                    mWidget.setTooltipConfig(toolTipConfig);
-
-                    mWidget.setOnKeyListener(
-                            (v, keyCode, event) -> {
-                                if (event.getAction() != KeyEvent.ACTION_UP) {
-                                    return false;
-                                }
-                                int dpadArrow = mIsRtl ?
-                                        KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT;
-                                if (mMediaDevice != null
-                                        && (keyCode == dpadArrow
-                                        || (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
-                                        && event.isLongPress()))) {
-
-                                    return openDeviceSettings(baseUri);
-                                }
-                                return false;
-                            });
-
-                    mA11ySettingsButton.setVisibility(View.GONE);
-                }
-            } else {
-                mA11ySettingsButton.setVisibility(View.GONE);
+            if (baseUri != null && !baseUri.isEmpty()) {
+                ControlWidget.TooltipConfig toolTipConfig = new ControlWidget.TooltipConfig();
+                toolTipConfig.setShouldShowTooltip(true);
+                toolTipConfig.setTooltipText(mTooltipText);
+                widget.setTooltipConfig(toolTipConfig);
             }
-        }
-
-        private boolean openDeviceSettings(@NonNull String baseUri) {
-            Uri uri = Uri.parse(baseUri);
-            if (mMediaDevice.getDeviceType()
-                    == MediaDeviceType.TYPE_BLUETOOTH_DEVICE) {
-                uri =
-                        Uri.withAppendedPath(
-                                uri,
-                                ((BluetoothMediaDevice) mMediaDevice)
-                                        .getCachedDevice()
-                                        .getAddress());
-            }
-
-            mSavedDeviceId = mMediaDevice.getId();
-            mCallback.openDeviceSettings(
-                    uri.toString(),
-                    mTitle.getText(),
-                    getSummary(mMediaDevice, /* focused= */ false),
-                    mMediaDevice.getId());
-
-            return true;
         }
 
         private void setRadioButtonColor() {
-            if (mWidget.hasFocus()) {
+            if (itemView.hasFocus()) {
                 mRadioButton.getButtonDrawable().setTint(
                         mRadioButton.isChecked() ? mCheckedRadioTint : mFocusedRadioTint);
             } else {
@@ -352,7 +325,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
 
         private void setSummary(MediaDevice mediaDevice) {
-            CharSequence summary = getSummary(mediaDevice, mWidget.hasFocus());
+            CharSequence summary = getSummary(mediaDevice, itemView.hasFocus());
             if (mediaDevice.getDeviceType() == MediaDeviceType.TYPE_PHONE_DEVICE
                     && mContext.getResources().getBoolean(
                     com.android.systemui.tv.res.R.bool.
@@ -409,7 +382,7 @@ public class TvMediaOutputAdapter extends RecyclerView.Adapter<RecyclerView.View
             mSubtitle.setVisibility(View.GONE);
             mRadioButton.setVisibility(View.GONE);
 
-            mWidget.setOnClickListener(v -> launchBluetoothSettings());
+            itemView.setOnClickListener(v -> launchBluetoothSettings());
         }
 
         private void launchBluetoothSettings() {
