@@ -16,16 +16,13 @@
 package com.android.systemui.tv.dagger
 
 import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
 import android.hardware.SensorPrivacyManager
-import android.media.AudioManager
-import android.media.session.MediaSessionManager
-import android.os.PowerExemptionManager
 import com.android.internal.logging.UiEventLogger
 import com.android.keyguard.KeyguardViewController
-import com.android.settingslib.bluetooth.LocalBluetoothManager
 import com.android.systemui.Dependency
+import com.android.systemui.accessibility.AccessibilityModule
+import com.android.systemui.accessibility.data.repository.AccessibilityRepositoryModule
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.broadcast.BroadcastSender
 import com.android.systemui.dagger.ReferenceSystemUIModule
@@ -34,12 +31,11 @@ import com.android.systemui.display.ui.viewmodel.ConnectingDisplayViewModel
 import com.android.systemui.dock.DockManager
 import com.android.systemui.dock.DockManagerImpl
 import com.android.systemui.doze.DozeHost
-import com.android.systemui.flags.FeatureFlags
-import com.android.systemui.media.dialog.MediaOutputDialogFactory
+import com.android.systemui.media.dialog.MediaOutputDialogManager
+import com.android.systemui.media.dialog.MediaSwitchingController
 import com.android.systemui.media.muteawait.MediaMuteAwaitConnectionCli
 import com.android.systemui.media.nearby.NearbyMediaDevicesManager
 import com.android.systemui.navigationbar.gestural.GestureModule
-import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.qs.QSFactory
 import com.android.systemui.power.dagger.PowerModule
 import com.android.systemui.privacy.MediaProjectionPrivacyItemMonitor
@@ -56,7 +52,6 @@ import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.NotificationLockscreenUserManagerImpl
 import com.android.systemui.statusbar.NotificationShadeWindowController
 import com.android.systemui.statusbar.events.StatusBarEventsModule
-import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection
 import com.android.systemui.statusbar.phone.DozeServiceHost
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.policy.AospPolicyModule
@@ -69,13 +64,17 @@ import com.android.systemui.statusbar.policy.SensorPrivacyController
 import com.android.systemui.statusbar.policy.SensorPrivacyControllerImpl
 import com.android.systemui.tv.hdmi.HdmiModule
 import com.android.systemui.tv.media.TvMediaOutputDialogActivity
-import com.android.systemui.tv.media.TvMediaOutputDialogFactory
+import com.android.systemui.tv.media.TvMediaOutputDialogManager
 import com.android.systemui.tv.notifications.TvNotificationHandler
 import com.android.systemui.tv.notifications.TvNotificationsModule
 import com.android.systemui.tv.privacy.PrivacyModule
 import com.android.systemui.tv.sensorprivacy.TvSensorPrivacyModule
 import com.android.systemui.tv.shade.TvNotificationShadeWindowController
 import com.android.systemui.unfold.SysUIUnfoldStartableModule
+import com.android.systemui.usb.UsbAccessoryUriActivity
+import com.android.systemui.usb.UsbDebuggingActivity
+import com.android.systemui.usb.UsbDebuggingSecondaryUserActivity
+import com.android.systemui.user.CreateUserActivity
 import com.android.systemui.volume.dagger.VolumeModule
 import dagger.Binds
 import dagger.Module
@@ -94,6 +93,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  */
 @Module(
     includes = [
+    AccessibilityModule::class,
+    AccessibilityRepositoryModule::class,
     AospPolicyModule::class,
     ConnectingDisplayViewModel.StartableModule::class,
     GestureModule::class,
@@ -158,6 +159,32 @@ abstract class TvSystemUIModule {
             tvMediaOutputDialogActivity: TvMediaOutputDialogActivity
     ): Activity
 
+    /** Inject into UsbDebuggingActivity.  */
+    @Binds
+    @IntoMap
+    @ClassKey(UsbDebuggingActivity::class)
+    abstract fun bindUsbDebuggingActivity(activity: UsbDebuggingActivity): Activity
+
+    /** Inject into UsbDebuggingSecondaryUserActivity.  */
+    @Binds
+    @IntoMap
+    @ClassKey(UsbDebuggingSecondaryUserActivity::class)
+    abstract fun bindUsbDebuggingSecondaryUserActivity(
+        activity: UsbDebuggingSecondaryUserActivity,
+    ): Activity
+
+    /** Inject into UsbAccessoryUriActivity.  */
+    @Binds
+    @IntoMap
+    @ClassKey(UsbAccessoryUriActivity::class)
+    abstract fun bindUsbAccessoryUriActivity(activity: UsbAccessoryUriActivity): Activity
+
+    /** Inject into CreateUserActivity.  */
+    @Binds
+    @IntoMap
+    @ClassKey(CreateUserActivity::class)
+    abstract fun bindCreateUserActivity(activity: CreateUserActivity): Activity
+
     companion object {
         @SysUISingleton
         @Provides
@@ -174,9 +201,13 @@ abstract class TvSystemUIModule {
         @Provides
         @SysUISingleton
         fun provideIndividualSensorPrivacyController(
-                sensorPrivacyManager: SensorPrivacyManager
+                sensorPrivacyManager: SensorPrivacyManager,
+            userTracker: UserTracker
         ): IndividualSensorPrivacyController =
-                IndividualSensorPrivacyControllerImpl(sensorPrivacyManager).apply { init() }
+                IndividualSensorPrivacyControllerImpl(
+                    sensorPrivacyManager,
+                    userTracker
+                ).apply { init() }
 
         @SysUISingleton
         @Provides
@@ -200,24 +231,18 @@ abstract class TvSystemUIModule {
 
         @Provides
         fun provideMediaOutputDialogFactory(
-            context: Context,
-            mediaSessionManager: MediaSessionManager,
-            localBluetoothManager: LocalBluetoothManager?,
-            activityStarter: ActivityStarter,
-            broadcastSender: BroadcastSender,
-            notifCollection: CommonNotifCollection,
-            uiEventLogger: UiEventLogger,
-            dialogTransitionAnimator: DialogTransitionAnimator,
-            nearbyMediaDevicesManager: NearbyMediaDevicesManager,
-            audioManager: AudioManager,
-            powerExemptionManager: PowerExemptionManager,
-            keyguardManager: KeyguardManager,
-            featureFlags: FeatureFlags,
-            userTracker: UserTracker,
-            ): MediaOutputDialogFactory =
-                TvMediaOutputDialogFactory(context, mediaSessionManager, localBluetoothManager,
-                        activityStarter, broadcastSender, notifCollection, uiEventLogger,
-                        dialogTransitionAnimator, nearbyMediaDevicesManager, audioManager,
-                        powerExemptionManager, keyguardManager, featureFlags, userTracker)
+                context: Context,
+                broadcastSender: BroadcastSender,
+                uiEventLogger: UiEventLogger,
+                dialogTransitionAnimator: DialogTransitionAnimator,
+                mediaSwitchingControllerFactory: MediaSwitchingController.Factory,
+            ): MediaOutputDialogManager =
+                TvMediaOutputDialogManager(
+                    context,
+                    broadcastSender,
+                    uiEventLogger,
+                    dialogTransitionAnimator,
+                    mediaSwitchingControllerFactory
+                )
     }
 }
