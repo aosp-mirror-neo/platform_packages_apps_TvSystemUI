@@ -45,20 +45,21 @@ import com.android.systemui.qs.tileimpl.QSFactoryImpl
 import com.android.systemui.screenshot.ReferenceScreenshotModule
 import com.android.systemui.settings.MultiUserUtilsModule
 import com.android.systemui.settings.UserTracker
+import com.android.systemui.settings.brightness.dagger.BrightnessSliderModule
 import com.android.systemui.shade.ShadeEmptyImplModule
 import com.android.systemui.statusbar.KeyboardShortcutsModule
 import com.android.systemui.statusbar.NotificationListener
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.NotificationLockscreenUserManagerImpl
 import com.android.systemui.statusbar.NotificationShadeWindowController
-import com.android.systemui.statusbar.notification.dagger.ReferenceNotificationsModule;
 import com.android.systemui.statusbar.events.StatusBarEventsModule
+import com.android.systemui.statusbar.notification.dagger.ReferenceNotificationsModule
+import com.android.systemui.statusbar.notification.headsup.HeadsUpEmptyImplModule
 import com.android.systemui.statusbar.phone.DozeServiceHost
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.policy.AospPolicyModule
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.statusbar.policy.DeviceProvisionedControllerImpl
-import com.android.systemui.statusbar.policy.HeadsUpEmptyImplModule
 import com.android.systemui.statusbar.policy.IndividualSensorPrivacyController
 import com.android.systemui.statusbar.policy.IndividualSensorPrivacyControllerImpl
 import com.android.systemui.statusbar.policy.SensorPrivacyController
@@ -97,6 +98,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
     AccessibilityModule::class,
     AccessibilityRepositoryModule::class,
     AospPolicyModule::class,
+    BrightnessSliderModule::class,
     ConnectingDisplayViewModel.StartableModule::class,
     GestureModule::class,
     HdmiModule::class,
