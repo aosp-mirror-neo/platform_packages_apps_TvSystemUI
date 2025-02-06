@@ -25,6 +25,7 @@ import com.android.systemui.accessibility.AccessibilityModule
 import com.android.systemui.accessibility.data.repository.AccessibilityRepositoryModule
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.broadcast.BroadcastSender
+import com.android.systemui.communal.posturing.dagger.NoopPosturingModule
 import com.android.systemui.dagger.ReferenceSystemUIModule
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.display.ui.viewmodel.ConnectingDisplayViewModel
@@ -72,12 +73,12 @@ import com.android.systemui.tv.notifications.TvNotificationsModule
 import com.android.systemui.tv.privacy.PrivacyModule
 import com.android.systemui.tv.sensorprivacy.TvSensorPrivacyModule
 import com.android.systemui.tv.shade.TvNotificationShadeWindowController
+import com.android.systemui.tv.volume.dagger.TvVolumeModule
 import com.android.systemui.unfold.SysUIUnfoldStartableModule
 import com.android.systemui.usb.UsbAccessoryUriActivity
 import com.android.systemui.usb.UsbDebuggingActivity
 import com.android.systemui.usb.UsbDebuggingSecondaryUserActivity
 import com.android.systemui.user.CreateUserActivity
-import com.android.systemui.volume.dagger.VolumeModule
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -107,6 +108,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
     MediaMuteAwaitConnectionCli.StartableModule::class,
     MultiUserUtilsModule::class,
     NearbyMediaDevicesManager.StartableModule::class,
+    NoopPosturingModule::class,
     PowerModule::class,
     PrivacyModule::class,
     QSModule::class,
@@ -117,7 +119,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
     SysUIUnfoldStartableModule::class,
     TvNotificationsModule::class,
     TvSensorPrivacyModule::class,
-    VolumeModule::class,
+    TvVolumeModule::class,
 ]
 )
 abstract class TvSystemUIModule {
